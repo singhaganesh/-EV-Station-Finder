@@ -1,0 +1,20 @@
+# Build and tool directories
+**/build/
+**/.gradle/
+**/.idea/
+**/target/
+**/bin/
+**/.settings/
+**/.classpath
+**/.project
+**/.factorypath
+
+# Local properties / secrets
+**/local.properties
+.env
+.env.*
+
+# IDE / System files
+.DS_Store
+Thumbs.db
+*.iml
