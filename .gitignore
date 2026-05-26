@@ -18,3 +18,5 @@
 .DS_Store
 Thumbs.db
 *.iml
+# Added by code-review-graph
+.code-review-graph/
