@@ -2,24 +2,23 @@ package com.ganesh.stationfinder
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Directions
 import androidx.compose.material.icons.filled.EvStation
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarOutline
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -34,10 +33,18 @@ import com.ganesh.stationfinder.util.FavoriteManager
 @Composable
 fun StationDetailsSheet(
     station: OCMStation,
+    viewModel: StationViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    val reviews by viewModel.reviews.collectAsState()
+    val isSubmitting by viewModel.isSubmittingReview.collectAsState()
     
+    // Load reviews on sheet display
+    LaunchedEffect(station.id) {
+        viewModel.fetchReviews(station.id)
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = Color.White,
@@ -48,6 +55,7 @@ fun StationDetailsSheet(
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 40.dp)
+                .verticalScroll(rememberScrollState())
         ) {
             // Header: Name and Operator
             Row(
@@ -57,17 +65,18 @@ fun StationDetailsSheet(
                 Box(
                     modifier = Modifier
                         .size(48.dp)
-                        .background(Color(0xFFE0F7F9), RoundedCornerShape(12.dp)),
+                        .background(Color(0xFFE0F2F1), RoundedCornerShape(12.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.EvStation, null, tint = Color(0xFF00BCD4))
+                    Icon(Icons.Default.EvStation, null, tint = Color(0xFF0F766E))
                 }
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = station.name,
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1E293B)
                     )
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -166,7 +175,8 @@ fun StationDetailsSheet(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = station.address ?: "Address not available",
-                    style = MaterialTheme.typography.bodyLarge
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color(0xFF1E293B)
                 )
             }
 
@@ -176,7 +186,8 @@ fun StationDetailsSheet(
             Text(
                 text = "Connectors & Slots",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1E293B)
             )
             
             Spacer(modifier = Modifier.height(8.dp))
@@ -188,7 +199,7 @@ fun StationDetailsSheet(
                             .fillMaxWidth()
                             .padding(vertical = 4.dp),
                         colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0))
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
                     ) {
                         Row(
                             modifier = Modifier
@@ -202,7 +213,8 @@ fun StationDetailsSheet(
                                     Text(
                                         text = slot.label ?: "Charger Slot",
                                         fontWeight = FontWeight.Bold,
-                                        style = MaterialTheme.typography.bodyLarge
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = Color(0xFF1E293B)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     val isAvail = slot.isAvailable == true
@@ -231,8 +243,12 @@ fun StationDetailsSheet(
                             }
                             if (slot.powerKw != null) {
                                 Column(horizontalAlignment = Alignment.End) {
+                                    val formattedPower = slot.powerKw.let { p ->
+                                        val rounded = Math.round(p * 10.0) / 10.0
+                                        if (rounded % 1.0 == 0.0) rounded.toInt().toString() else rounded.toString()
+                                    }
                                     Text(
-                                        text = "${slot.powerKw} kW",
+                                        text = "$formattedPower kW",
                                         fontWeight = FontWeight.ExtraBold,
                                         fontSize = 18.sp,
                                         color = Color(0xFF0F766E)
@@ -251,7 +267,7 @@ fun StationDetailsSheet(
                 Text("No charger slots available", color = Color.Gray)
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Action: Navigate Button
             Button(
@@ -267,13 +283,190 @@ fun StationDetailsSheet(
                     .fillMaxWidth()
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A2234))
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F766E))
             ) {
                 Icon(Icons.Default.Directions, null)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Start Navigation", fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Reviews & Ratings Header
+            Text(
+                text = "User Reviews & Ratings",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1E293B)
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Submit Review Form Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Write a Review",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color(0xFF1E293B)
+                    )
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    // Star Rating selector
+                    var ratingInput by remember { mutableStateOf(5) }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        for (i in 1..5) {
+                            Icon(
+                                imageVector = if (i <= ratingInput) Icons.Default.Star else Icons.Default.StarOutline,
+                                contentDescription = null,
+                                tint = Color(0xFFFFB300),
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clickable { ratingInput = i }
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "$ratingInput / 5 Stars",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = Color(0xFF0F766E)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Reviewer Name Field
+                    var reviewerNameInput by remember { mutableStateOf(FavoriteManager.getVehicleModel(context)) }
+                    OutlinedTextField(
+                        value = reviewerNameInput,
+                        onValueChange = { reviewerNameInput = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Your Name / Vehicle Model") },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFF0F766E),
+                            unfocusedBorderColor = Color(0xFFCBD5E1)
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Comment Field
+                    var commentInput by remember { mutableStateOf("") }
+                    OutlinedTextField(
+                        value = commentInput,
+                        onValueChange = { commentInput = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Share your experience...") },
+                        maxLines = 3,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFF0F766E),
+                            unfocusedBorderColor = Color(0xFFCBD5E1)
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Button(
+                        onClick = {
+                            if (reviewerNameInput.isNotBlank()) {
+                                viewModel.submitReview(
+                                    stationId = station.id,
+                                    reviewerName = reviewerNameInput,
+                                    rating = ratingInput.toDouble(),
+                                    comment = commentInput
+                                ) {
+                                    commentInput = ""
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F766E)),
+                        enabled = !isSubmitting
+                    ) {
+                        if (isSubmitting) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White)
+                        } else {
+                            Text("Submit Review", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Reviews List
+            if (reviews.isNotEmpty()) {
+                reviews.forEach { review ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = review.reviewerName,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF1E293B)
+                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Star,
+                                        contentDescription = null,
+                                        tint = Color(0xFFFFB300),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(2.dp))
+                                    Text(
+                                        text = review.rating.toInt().toString(),
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.DarkGray
+                                    )
+                                }
+                            }
+                            if (!review.comment.isNullOrBlank()) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = review.comment,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color.DarkGray
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No reviews yet. Be the first to review!",
+                        color = Color.Gray,
+                        fontSize = 14.sp
+                    )
+                }
+            }
         }
     }
 }
-

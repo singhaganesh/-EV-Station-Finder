@@ -41,3 +41,12 @@ data class SlotInfo(
     @SerializedName("isAvailable") val isAvailable: Boolean?
 )
 
+data class Review(
+    @SerializedName("id") val id: Long,
+    @SerializedName("reviewerName") val reviewerName: String,
+    @SerializedName("rating") val rating: Double,
+    @SerializedName("comment") val comment: String?,
+    @SerializedName("createdAt") val createdAt: String?
+)
+
+

@@ -115,4 +115,53 @@ public class StationController {
                     .body(ApiResponse.error("Error: " + e.getMessage()));
         }
     }
+
+    /**
+     * GET /api/stations/{id}/reviews
+     */
+    @GetMapping("/{id}/reviews")
+    public ResponseEntity<ApiResponse<?>> getReviews(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(ApiResponse.success("Success", stationService.getReviewsForStation(id)));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("Error: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * POST /api/stations/{id}/reviews
+     */
+    @PostMapping("/{id}/reviews")
+    public ResponseEntity<ApiResponse<?>> addReview(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> payload) {
+        try {
+            String reviewerName = (String) payload.getOrDefault("reviewerName", "Anonymous");
+            double rating = ((Number) payload.get("rating")).doubleValue();
+            String comment = (String) payload.getOrDefault("comment", "");
+            var review = stationService.addReviewForStation(id, reviewerName, rating, comment);
+            return ResponseEntity.ok(ApiResponse.success("Review added successfully", review));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("Error: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * GET /api/stations/route?waypoints=...&connectorType=CCS2&bufferKm=10.0
+     */
+    @GetMapping("/route")
+    public ResponseEntity<ApiResponse<?>> getStationsAlongRoute(
+            @RequestParam String waypoints,
+            @RequestParam(required = false) String connectorType,
+            @RequestParam(defaultValue = "10.0") double bufferKm) {
+        try {
+            var stations = stationService.getStationsAlongRoute(waypoints, connectorType, bufferKm);
+            return ResponseEntity.ok(ApiResponse.success("Found " + stations.size() + " stations along route", stations));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("Error: " + e.getMessage()));
+        }
+    }
 }

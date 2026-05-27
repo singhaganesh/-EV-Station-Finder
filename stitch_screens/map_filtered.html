@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Station Finder - Filtered Map</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "inverse-surface": "#2d3133",
+                      "surface-container": "#eceef0",
+                      "on-secondary-fixed": "#111c2d",
+                      "on-error-container": "#93000a",
+                      "surface-bright": "#f7f9fb",
+                      "tertiary-container": "#8d6100",
+                      "tertiary-fixed": "#ffdeac",
+                      "on-tertiary": "#ffffff",
+                      "on-background": "#191c1e",
+                      "surface-tint": "#006a63",
+                      "surface-container-lowest": "#ffffff",
+                      "inverse-on-surface": "#eff1f3",
+                      "on-surface": "#191c1e",
+                      "tertiary-fixed-dim": "#ffba38",
+                      "on-error": "#ffffff",
+                      "secondary-fixed-dim": "#bcc7de",
+                      "secondary-fixed": "#d8e3fb",
+                      "secondary": "#545f73",
+                      "outline": "#6e7977",
+                      "surface-variant": "#e0e3e5",
+                      "on-primary-container": "#a3faef",
+                      "primary-container": "#0f766e",
+                      "on-primary-fixed-variant": "#00504a",
+                      "on-primary": "#ffffff",
+                      "on-tertiary-fixed": "#281900",
+                      "secondary-container": "#d5e0f8",
+                      "surface-container-highest": "#e0e3e5",
+                      "on-primary-fixed": "#00201d",
+                      "on-secondary-container": "#586377",
+                      "on-tertiary-container": "#ffe7c6",
+                      "error-container": "#ffdad6",
+                      "primary-fixed-dim": "#80d5cb",
+                      "outline-variant": "#bdc9c6",
+                      "surface-container-high": "#e6e8ea",
+                      "surface-dim": "#d8dadc",
+                      "on-secondary": "#ffffff",
+                      "tertiary": "#6d4b00",
+                      "inverse-primary": "#80d5cb",
+                      "background": "#f7f9fb",
+                      "on-tertiary-fixed-variant": "#604100",
+                      "surface-container-low": "#f2f4f6",
+                      "surface": "#f7f9fb",
+                      "on-surface-variant": "#3e4947",
+                      "primary-fixed": "#9cf2e8",
+                      "on-secondary-fixed-variant": "#3c475a",
+                      "primary": "#005c55",
+                      "error": "#ba1a1a"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "base": "8px",
+                      "margin-mobile": "16px",
+                      "stack-sm": "4px",
+                      "stack-md": "12px",
+                      "stack-lg": "24px",
+                      "gutter": "16px"
+              },
+              "fontFamily": {
+                      "headline-md": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "caption": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "label-md": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "headline-sm": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "display-lg": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "body-md": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "title-lg": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "body-lg": [
+                              "Plus Jakarta Sans"
+                      ]
+              },
+              "fontSize": {
+                      "headline-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "caption": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "label-md": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-sm": [
+                              "20px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "display-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "body-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "title-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-lg": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "500"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+<style>
+        .material-symbols-outlined {
+          font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill {
+          font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        /* Map background simulation */
+        .map-bg {
+            background-color: #e5e5e5;
+            background-image: 
+                radial-gradient(#d4d4d4 1px, transparent 1px),
+                radial-gradient(#d4d4d4 1px, transparent 1px);
+            background-size: 20px 20px;
+            background-position: 0 0, 10px 10px;
+        }
+      </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md min-h-screen flex flex-col overflow-hidden">
+<!-- TopAppBar -->
+<header class="bg-surface dark:bg-inverse-surface border-b border-outline-variant dark:border-outline flex justify-between items-center w-full px-margin-mobile h-16 shrink-0 z-10">
+<button class="w-12 h-12 flex items-center justify-start text-primary dark:text-primary-fixed-dim hover:bg-surface-container dark:hover:bg-inverse-surface rounded-full transition-transform duration-100 active:scale-95">
+<span class="material-symbols-outlined">bolt</span>
+</button>
+<h1 class="text-headline-sm font-headline-sm font-bold text-on-surface dark:text-inverse-on-surface">Station Finder</h1>
+<button class="w-12 h-12 flex items-center justify-end text-primary dark:text-primary-fixed-dim hover:bg-surface-container dark:hover:bg-inverse-surface rounded-full transition-transform duration-100 active:scale-95">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</header>
+<!-- Main Map Area -->
+<main class="flex-grow relative map-bg">
+<!-- Search & Filter Bar -->
+<div class="absolute top-4 left-4 right-4 z-10 flex flex-col gap-stack-sm">
+<div class="bg-surface rounded-lg shadow-sm border border-outline-variant flex items-center px-4 py-3 h-12">
+<span class="material-symbols-outlined text-on-surface-variant mr-3">search</span>
+<input class="bg-transparent border-none focus:ring-0 w-full text-body-md font-body-md text-on-surface placeholder:text-on-surface-variant outline-none" placeholder="Search destination..." type="text"/>
+<button class="ml-2 w-8 h-8 flex items-center justify-center rounded-full bg-surface-container hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-primary text-sm">tune</span>
+</button>
+</div>
+<!-- Filter Chips -->
+<div class="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+<button class="shrink-0 bg-primary text-on-primary rounded-full px-4 py-1.5 text-label-md font-label-md flex items-center gap-1 shadow-sm">
+                    CCS2
+                    <span class="material-symbols-outlined text-[14px]">close</span>
+</button>
+<button class="shrink-0 bg-surface text-on-surface-variant border border-outline-variant rounded-full px-4 py-1.5 text-label-md font-label-md hover:bg-surface-container transition-colors shadow-sm">
+                    Fast Charging
+                </button>
+<button class="shrink-0 bg-surface text-on-surface-variant border border-outline-variant rounded-full px-4 py-1.5 text-label-md font-label-md hover:bg-surface-container transition-colors shadow-sm">
+                    Available Now
+                </button>
+</div>
+<!-- Active Filter Banner -->
+<div class="bg-primary-container text-on-primary-container rounded-lg p-3 flex items-start gap-3 shadow-md border border-primary/20">
+<span class="material-symbols-outlined shrink-0 mt-0.5">directions_car</span>
+<p class="text-body-md font-body-md flex-grow pr-2">
+                    Showing CCS2 stations compatible with your Tata Nexon EV
+                </p>
+<button class="shrink-0 w-6 h-6 flex items-center justify-center rounded-full hover:bg-black/10 transition-colors">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+</div>
+<!-- Map Pins -->
+<!-- Compatible Pin 1 -->
+<div class="absolute top-[35%] left-[25%] -translate-x-1/2 -translate-y-full flex flex-col items-center">
+<div class="bg-primary text-on-primary w-10 h-10 rounded-full flex items-center justify-center shadow-md relative border-2 border-surface">
+<span class="material-symbols-outlined fill">ev_station</span>
+<div class="absolute -top-1 -right-1 w-4 h-4 bg-[#ECFDF5] rounded-full flex items-center justify-center border border-white">
+<span class="material-symbols-outlined text-[#15803D] text-[12px] font-bold">check</span>
+</div>
+</div>
+<div class="w-0 h-0 border-l-[6px] border-r-[6px] border-t-[8px] border-l-transparent border-r-transparent border-t-primary -mt-[1px]"></div>
+</div>
+<!-- Compatible Pin 2 -->
+<div class="absolute top-[55%] left-[65%] -translate-x-1/2 -translate-y-full flex flex-col items-center">
+<div class="bg-primary text-on-primary w-10 h-10 rounded-full flex items-center justify-center shadow-md relative border-2 border-surface">
+<span class="material-symbols-outlined fill">ev_station</span>
+<div class="absolute -top-1 -right-1 w-4 h-4 bg-[#ECFDF5] rounded-full flex items-center justify-center border border-white">
+<span class="material-symbols-outlined text-[#15803D] text-[12px] font-bold">check</span>
+</div>
+</div>
+<div class="w-0 h-0 border-l-[6px] border-r-[6px] border-t-[8px] border-l-transparent border-r-transparent border-t-primary -mt-[1px]"></div>
+</div>
+<!-- Incompatible Pin 1 -->
+<div class="absolute top-[45%] left-[80%] -translate-x-1/2 -translate-y-full flex flex-col items-center opacity-60">
+<div class="bg-surface-variant text-on-surface-variant w-8 h-8 rounded-full flex items-center justify-center border-2 border-surface">
+<span class="material-symbols-outlined text-[18px] fill">ev_station</span>
+</div>
+</div>
+<!-- Incompatible Pin 2 -->
+<div class="absolute top-[25%] left-[55%] -translate-x-1/2 -translate-y-full flex flex-col items-center opacity-60">
+<div class="bg-surface-variant text-on-surface-variant w-8 h-8 rounded-full flex items-center justify-center border-2 border-surface">
+<span class="material-symbols-outlined text-[18px] fill">ev_station</span>
+</div>
+</div>
+<!-- User Location -->
+<div class="absolute top-[60%] left-[40%] -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
+<div class="w-12 h-12 bg-primary/20 rounded-full animate-ping absolute"></div>
+<div class="w-4 h-4 bg-primary rounded-full border-2 border-surface relative z-10 shadow-sm"></div>
+</div>
+<!-- Recenter Button -->
+<button class="absolute bottom-24 right-4 w-12 h-12 bg-surface text-primary rounded-full shadow-md flex items-center justify-center hover:bg-surface-container transition-colors border border-outline-variant/30 z-10">
+<span class="material-symbols-outlined">my_location</span>
+</button>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-3 pb-safe bg-surface dark:bg-inverse-surface shadow-[0_-1px_3px_rgba(0,0,0,0.05)] shadow-lg shrink-0">
+<!-- Active Tab: Map -->
+<button class="flex flex-col items-center justify-center bg-primary/10 dark:bg-primary-container/20 text-primary dark:text-primary-fixed-dim rounded-full px-6 py-1 hover:bg-surface-container-high dark:hover:bg-inverse-surface active:scale-90 transition-all duration-200">
+<span class="material-symbols-outlined fill">map</span>
+<span class="text-label-md font-label-md mt-1">Map</span>
+</button>
+<!-- Inactive Tab: List -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-surface-variant px-6 py-1 hover:bg-surface-container-high dark:hover:bg-inverse-surface active:scale-90 transition-all duration-200">
+<span class="material-symbols-outlined">list</span>
+<span class="text-label-md font-label-md mt-1">List</span>
+</button>
+<!-- Inactive Tab: Saved -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-surface-variant px-6 py-1 hover:bg-surface-container-high dark:hover:bg-inverse-surface active:scale-90 transition-all duration-200">
+<span class="material-symbols-outlined">bookmark</span>
+<span class="text-label-md font-label-md mt-1">Saved</span>
+</button>
+</nav>
+<!-- Add padding to bottom of body to account for fixed navbar -->
+<div class="h-20 shrink-0"></div>
+</body></html>

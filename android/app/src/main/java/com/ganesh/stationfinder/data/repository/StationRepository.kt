@@ -27,4 +27,39 @@ class StationRepository {
             emptyList()
         }
     }
+
+    suspend fun getReviews(stationId: Long): List<com.ganesh.stationfinder.data.model.Review> {
+        return try {
+            val response = api.getReviews(stationId)
+            if (response.success) response.data else emptyList()
+        } catch (e: Exception) {
+            android.util.Log.e("Repository", "Error getting reviews", e)
+            emptyList()
+        }
+    }
+
+    suspend fun addReview(stationId: Long, reviewerName: String, rating: Double, comment: String): com.ganesh.stationfinder.data.model.Review? {
+        return try {
+            val body = mapOf(
+                "reviewerName" to reviewerName,
+                "rating" to rating,
+                "comment" to comment
+            )
+            val response = api.addReview(stationId, body)
+            if (response.success) response.data else null
+        } catch (e: Exception) {
+            android.util.Log.e("Repository", "Error adding review", e)
+            null
+        }
+    }
+
+    suspend fun getStationsAlongRoute(waypoints: String, connectorType: String?): List<OCMStation> {
+        return try {
+            val response = api.getStationsAlongRoute(waypoints, connectorType)
+            if (response.success) response.data else emptyList()
+        } catch (e: Exception) {
+            android.util.Log.e("Repository", "Error getting stations along route", e)
+            emptyList()
+        }
+    }
 }

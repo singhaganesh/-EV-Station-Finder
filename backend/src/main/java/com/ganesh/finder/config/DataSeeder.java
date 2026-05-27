@@ -234,6 +234,40 @@ public class DataSeeder implements CommandLineRunner {
         chargerSlotRepository.save(ChargerSlot.builder().station(h1).slotLabel("CCS2 #1").connectorType("CCS2").powerKw(60.0).isAvailable(true).build());
         chargerSlotRepository.save(ChargerSlot.builder().station(h1).slotLabel("CCS2 #2").connectorType("CCS2").powerKw(60.0).isAvailable(false).build());
 
-        log.info("✅ Offline mock seeding complete. 8 stations successfully seeded into Supabase!");
+        // Route Stop 1 (Navi Mumbai)
+        Station r1 = Station.builder()
+                .name("Jio-bp Pulse Charging Hub - Navi Mumbai")
+                .latitude(19.0330)
+                .longitude(73.0297)
+                .address("Sion-Panvel Highway, Navi Mumbai, Maharashtra 400706")
+                .pricePerKwh(16.5)
+                .rating(4.6)
+                .isOpen(true)
+                .operatingHours("24 Hours")
+                .meta("{\"source\":\"Offline Mock\",\"ocm_operator\":\"Jio-bp Pulse\"}")
+                .lastSynced(LocalDateTime.now())
+                .build();
+        r1 = stationRepository.save(r1);
+        chargerSlotRepository.save(ChargerSlot.builder().station(r1).slotLabel("CCS2 #1").connectorType("CCS2").powerKw(60.0).isAvailable(true).build());
+        chargerSlotRepository.save(ChargerSlot.builder().station(r1).slotLabel("Type 2 #1").connectorType("Type 2").powerKw(22.0).isAvailable(true).build());
+
+        // Route Stop 2 (Lonavala)
+        Station r2 = Station.builder()
+                .name("Tata Power EZ Charging Station - Lonavala")
+                .latitude(18.7557)
+                .longitude(73.4091)
+                .address("Mumbai-Pune Expressway, Lonavala, Maharashtra 410401")
+                .pricePerKwh(19.5)
+                .rating(4.4)
+                .isOpen(true)
+                .operatingHours("24 Hours")
+                .meta("{\"source\":\"Offline Mock\",\"ocm_operator\":\"Tata Power\"}")
+                .lastSynced(LocalDateTime.now())
+                .build();
+        r2 = stationRepository.save(r2);
+        chargerSlotRepository.save(ChargerSlot.builder().station(r2).slotLabel("CCS2 #1").connectorType("CCS2").powerKw(50.0).isAvailable(true).build());
+        chargerSlotRepository.save(ChargerSlot.builder().station(r2).slotLabel("CCS2 #2").connectorType("CCS2").powerKw(50.0).isAvailable(false).build());
+
+        log.info("✅ Offline mock seeding complete. 10 stations successfully seeded into Supabase!");
     }
 }
