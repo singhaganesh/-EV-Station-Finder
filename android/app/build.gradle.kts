@@ -13,6 +13,7 @@ if (localPropertiesFile.exists()) {
 }
 val mapsApiKey: String = localProperties.getProperty("MAPS_API_KEY")?.trim() ?: ""
 val ocmApiKey: String = localProperties.getProperty("OCM_API_KEY")?.trim() ?: ""
+val baseUrl: String = localProperties.getProperty("BASE_URL")?.trim() ?: "http://10.0.2.2:8081/"
 
 android {
     namespace = "com.ganesh.stationfinder"
@@ -29,6 +30,7 @@ android {
         
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
         buildConfigField("String", "OCM_API_KEY", "\"${ocmApiKey}\"")
+        buildConfigField("String", "BASE_URL", "\"${baseUrl}\"")
     }
 
     buildTypes {
