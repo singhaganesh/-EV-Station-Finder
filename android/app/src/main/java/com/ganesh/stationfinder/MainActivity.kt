@@ -56,7 +56,9 @@ class MainActivity : ComponentActivity() {
 sealed class NavigationItem(val route: String, val icon: androidx.compose.ui.graphics.vector.ImageVector, val label: String) {
     object Map : NavigationItem("map", Icons.Default.Map, "Map")
     object List : NavigationItem("list", Icons.AutoMirrored.Filled.List, "List")
+    object RoutePlan : NavigationItem("route_planner", Icons.Default.Navigation, "Route Plan")
     object Saved : NavigationItem("saved", Icons.Default.Bookmark, "Saved")
+    object Profile : NavigationItem("profile", Icons.Default.Person, "Profile")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -99,14 +101,6 @@ fun MainAppScreen(viewModel: StationViewModel = viewModel()) {
                             )
                         }
                     },
-                    actions = {
-                        IconButton(onClick = { navController.navigate("route_planner") }) {
-                            Icon(Icons.Default.Navigation, contentDescription = "Route Planner", tint = Color(0xFF0F766E))
-                        }
-                        IconButton(onClick = { navController.navigate("profile") }) {
-                            Icon(Icons.Default.Person, contentDescription = "Profile", tint = Color(0xFF0F766E))
-                        }
-                    },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                         containerColor = Color.White,
                         titleContentColor = Color(0xFF1E293B)
@@ -117,7 +111,13 @@ fun MainAppScreen(viewModel: StationViewModel = viewModel()) {
         },
         bottomBar = {
             // Show bottom bar only for main screens
-            val showBottomBar = currentRoute in listOf(NavigationItem.Map.route, NavigationItem.List.route, NavigationItem.Saved.route)
+            val showBottomBar = currentRoute in listOf(
+                NavigationItem.Map.route,
+                NavigationItem.List.route,
+                NavigationItem.RoutePlan.route,
+                NavigationItem.Saved.route,
+                NavigationItem.Profile.route
+            )
             if (showBottomBar) {
                 NavigationBar(
                     containerColor = Color.White,
@@ -126,7 +126,9 @@ fun MainAppScreen(viewModel: StationViewModel = viewModel()) {
                     val items = listOf(
                         NavigationItem.Map,
                         NavigationItem.List,
-                        NavigationItem.Saved
+                        NavigationItem.RoutePlan,
+                        NavigationItem.Saved,
+                        NavigationItem.Profile
                     )
                     items.forEach { item ->
                         val isSelected = currentRoute == item.route
@@ -190,15 +192,15 @@ fun MainAppScreen(viewModel: StationViewModel = viewModel()) {
                         selectedStation = station
                     }
                 }
-                composable("profile") {
+                composable(NavigationItem.Profile.route) {
                     ProfileScreen(
-                        onBackClick = { navController.popBackStack() }
+                        onBackClick = { navController.navigate(NavigationItem.Map.route) { popUpTo(NavigationItem.Map.route) { inclusive = false } } }
                     )
                 }
-                composable("route_planner") {
+                composable(NavigationItem.RoutePlan.route) {
                     RoutePlannerScreen(
                         viewModel = viewModel,
-                        onBackClick = { navController.popBackStack() },
+                        onBackClick = { navController.navigate(NavigationItem.Map.route) { popUpTo(NavigationItem.Map.route) { inclusive = false } } },
                         onStationClick = { station -> selectedStation = station }
                     )
                 }
