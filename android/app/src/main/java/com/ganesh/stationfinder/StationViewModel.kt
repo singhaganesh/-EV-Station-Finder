@@ -101,8 +101,8 @@ class StationViewModel : ViewModel() {
         }
     }
 
-    fun fetchNearbyStationsDebounced(location: LatLng, zoom: Float) {
-        // Only fetch if moved more than ~500 meters or zoom changed significantly
+    fun fetchNearbyStationsDebounced(location: LatLng, radius: Double) {
+        // Only fetch if moved more than ~500 meters
         val distanceMoved = lastFetchedLocation?.let { 
             calculateDistance(it, location)
         } ?: Float.MAX_VALUE
@@ -112,7 +112,6 @@ class StationViewModel : ViewModel() {
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
             delay(1500) // 1.5 second debounce
-            val radius = calculateRadiusFromZoom(zoom)
             fetchNearbyStations(location, radius, manual = false)
         }
     }

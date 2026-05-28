@@ -332,8 +332,22 @@ fun MapTabScreen(
             LaunchedEffect(cameraPositionState.isMoving) {
                 if (!cameraPositionState.isMoving) {
                     val center = cameraPositionState.position.target
-                    val zoom = cameraPositionState.position.zoom
-                    viewModel.fetchNearbyStationsDebounced(center, zoom)
+                    val projection = cameraPositionState.projection
+                    val visibleRegion = projection?.visibleRegion
+                    val radius = if (visibleRegion != null) {
+                        val results = FloatArray(1)
+                        android.location.Location.distanceBetween(
+                            center.latitude, center.longitude,
+                            visibleRegion.farRight.latitude, visibleRegion.farRight.longitude,
+                            results
+                        )
+                        // Convert meters to kilometers and add 20% buffer
+                        (results[0] / 1000.0) * 1.2
+                    } else {
+                        // Fallback based on default search radius
+                        10.0
+                    }
+                    viewModel.fetchNearbyStationsDebounced(center, radius)
                 }
             }
 
@@ -387,9 +401,18 @@ fun MapTabScreen(
             // Nearby Stations Carousel overlay at the bottom
             if (uiState is StationUiState.Success) {
                 val stations = (uiState as StationUiState.Success).stations
-                if (stations.isNotEmpty()) {
+                val visibleRegion = cameraPositionState.projection?.visibleRegion
+                val visibleStations = if (visibleRegion != null) {
+                    stations.filter { station ->
+                        visibleRegion.latLngBounds.contains(LatLng(station.latitude, station.longitude))
+                    }
+                } else {
+                    stations
+                }
+
+                if (visibleStations.isNotEmpty()) {
                     NearbyStationsCarousel(
-                        stations = stations,
+                        stations = visibleStations,
                         onStationClick = { station ->
                             // Center camera on clicked station
                             cameraPositionState.position = CameraPosition.fromLatLngZoom(
