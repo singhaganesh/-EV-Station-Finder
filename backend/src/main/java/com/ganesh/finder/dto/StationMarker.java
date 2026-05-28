@@ -1,5 +1,6 @@
 package com.ganesh.finder.dto;
 
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -15,4 +16,9 @@ public class StationMarker {
     private Double latitude;
     private Double longitude;
     private Boolean available;
+    private Double rating;
+    private Double distance;
+    private Integer availableSlots;
+    private Integer totalSlots;
+    private List<String> connectorTypes;
 }

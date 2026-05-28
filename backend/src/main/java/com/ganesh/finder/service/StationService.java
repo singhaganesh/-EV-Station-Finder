@@ -35,6 +35,8 @@ public class StationService {
         this.reviewRepository = reviewRepository;
     }
 
+    public record ViewportResponse(List<StationMarker> markers, boolean tooMany) {}
+
     /**
      * Get lightweight markers for stations in a viewport.
      */
@@ -54,6 +56,60 @@ public class StationService {
                     .available(availableSlots > 0)
                     .build();
         }).collect(Collectors.toList());
+    }
+
+    /**
+     * Get optimized lightweight markers for stations in a viewport, including rating, distance,
+     * available slots, total slots, and connector types.
+     */
+    public ViewportResponse getStationsInViewportOptimized(
+            double neLat, double neLng, double swLat, double swLng) {
+
+        double minLat = Math.min(swLat, neLat), maxLat = Math.max(swLat, neLat);
+        double minLng = Math.min(swLng, neLng), maxLng = Math.max(swLng, neLng);
+
+        long totalCount = stationRepository.countStationsInViewport(minLat, maxLat, minLng, maxLng);
+        boolean tooMany = totalCount > 200;
+
+        List<Station> stations = stationRepository.findStationsInViewportWithSlots(
+                minLat, maxLat, minLng, maxLng);
+
+        double centerLat = (minLat + maxLat) / 2.0;
+        double centerLng = (minLng + maxLng) / 2.0;
+
+        List<StationMarker> markers = stations.stream()
+            .map(station -> {
+                List<ChargerSlot> slots = station.getChargerSlots();
+                if (slots == null) {
+                    slots = java.util.Collections.emptyList();
+                }
+                long availableCount = slots.stream().filter(ChargerSlot::getIsAvailable).count();
+                List<String> connectorTypes = slots.stream()
+                    .map(ChargerSlot::getConnectorType)
+                    .filter(c -> c != null)
+                    .distinct()
+                    .collect(Collectors.toList());
+                double dist = calculateDistance(centerLat, centerLng,
+                        station.getLatitude(), station.getLongitude());
+
+                return StationMarker.builder()
+                    .id(station.getId())
+                    .name(station.getName())
+                    .latitude(station.getLatitude())
+                    .longitude(station.getLongitude())
+                    .available(availableCount > 0)
+                    .rating(station.getRating())
+                    .distance(dist)
+                    .availableSlots((int) availableCount)
+                    .totalSlots(slots.size())
+                    .connectorTypes(connectorTypes)
+                    .build();
+            })
+            .sorted(Comparator.comparingDouble(StationMarker::getDistance))
+            .limit(200)
+            .collect(Collectors.toList());
+
+        return new ViewportResponse(markers, tooMany);
     }
 
     /**

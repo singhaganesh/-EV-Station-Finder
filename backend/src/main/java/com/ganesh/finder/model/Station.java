@@ -5,7 +5,10 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
+import lombok.EqualsAndHashCode;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "stations")
@@ -53,6 +56,12 @@ public class Station {
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
+
+    @OneToMany(mappedBy = "station", fetch = FetchType.LAZY)
+    @Builder.Default
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private List<ChargerSlot> chargerSlots = new java.util.ArrayList<>();
 
     @PrePersist
     protected void onCreate() {

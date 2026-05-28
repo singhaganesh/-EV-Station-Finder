@@ -54,9 +54,11 @@ public class StationController {
             @RequestParam double swLat,
             @RequestParam double swLng) {
         try {
-            List<StationMarker> markers = stationService.getStationsInViewport(neLat, neLng, swLat, swLng);
-            return ResponseEntity.ok(ApiResponse.success(
-                    "Found " + markers.size() + " stations in viewport", markers));
+            StationService.ViewportResponse result = stationService.getStationsInViewportOptimized(neLat, neLng, swLat, swLng);
+            String msg = result.tooMany()
+                ? "Too many stations, showing nearest 200. Zoom in for more."
+                : "Found " + result.markers().size() + " stations in viewport";
+            return ResponseEntity.ok(ApiResponse.success(msg, result.markers()));
         } catch (Exception e) {
             return ResponseEntity.internalServerError()
                     .body(ApiResponse.error("Error: " + e.getMessage()));

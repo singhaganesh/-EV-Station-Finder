@@ -49,4 +49,17 @@ data class Review(
     @SerializedName("createdAt") val createdAt: String?
 )
 
+data class StationMarker(
+    @SerializedName("id") val id: Long,
+    @SerializedName("name") val name: String,
+    @SerializedName("latitude") val latitude: Double,
+    @SerializedName("longitude") val longitude: Double,
+    @SerializedName("available") val available: Boolean,
+    @SerializedName("rating") val rating: Double?,
+    @SerializedName("distance") val distance: Double?,
+    @SerializedName("availableSlots") val availableSlots: Int?,
+    @SerializedName("totalSlots") val totalSlots: Int?,
+    @SerializedName("connectorTypes") val connectorTypes: List<String>?
+)
+
 

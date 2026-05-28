@@ -29,6 +29,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.ganesh.stationfinder.data.model.OCMStation
+import com.ganesh.stationfinder.data.model.StationMarker
 import com.ganesh.stationfinder.util.LocationHelper
 import com.ganesh.stationfinder.util.FavoriteManager
 import android.content.Intent
@@ -233,8 +234,9 @@ fun MapTabScreen(
     onStationClick: (OCMStation) -> Unit
 ) {
     val context = LocalContext.current
-    val uiState by viewModel.uiState.collectAsState()
+    val markerState by viewModel.markerState.collectAsState()
     val selectedConnector by viewModel.selectedConnectorFilter.collectAsState()
+    val selectedStationDetail by viewModel.selectedStationDetail.collectAsState()
     
     var userLocation by remember { mutableStateOf<LatLng?>(null) }
     
@@ -257,7 +259,6 @@ fun MapTabScreen(
         if (hasLocationPermission) {
             LocationHelper.getCurrentLocation(context) { location ->
                 userLocation = location
-                location?.let { viewModel.fetchNearbyStations(it) }
             }
         } else {
             launcher.launch(
@@ -269,26 +270,32 @@ fun MapTabScreen(
         }
     }
 
-    LaunchedEffect(uiState) {
-        when (uiState) {
-            is StationUiState.Error -> {
+    LaunchedEffect(markerState) {
+        when (val state = markerState) {
+            is MarkerUiState.Error -> {
                 android.widget.Toast.makeText(
                     context, 
-                    "Error: ${(uiState as StationUiState.Error).message}", 
+                    "Error: ${state.message}", 
                     android.widget.Toast.LENGTH_LONG
                 ).show()
             }
-            is StationUiState.Success -> {
-                val stations = (uiState as StationUiState.Success).stations
-                if (stations.isEmpty() && viewModel.isManualSearch) {
+            is MarkerUiState.Success -> {
+                if (state.tooMany) {
                     android.widget.Toast.makeText(
                         context, 
-                        "No stations found in this area", 
-                        android.widget.Toast.LENGTH_LONG
+                        "Showing nearest 200. Zoom in for more.", 
+                        android.widget.Toast.LENGTH_SHORT
                     ).show()
                 }
             }
             else -> {}
+        }
+    }
+
+    LaunchedEffect(selectedStationDetail) {
+        selectedStationDetail?.let { detail ->
+            onStationClick(detail)
+            viewModel.clearSelectedStationDetail()
         }
     }
 
@@ -304,23 +311,25 @@ fun MapTabScreen(
                 properties = MapProperties(isMyLocationEnabled = true),
                 uiSettings = MapUiSettings(myLocationButtonEnabled = true)
             ) {
-                if (uiState is StationUiState.Success) {
-                    val stations = (uiState as StationUiState.Success).stations
-                    stations.forEach { station ->
-                        val isCompatible = selectedConnector == null || station.connectorTypes?.contains(selectedConnector) == true
+                if (markerState is MarkerUiState.Success) {
+                    val markers = (markerState as MarkerUiState.Success).markers
+                    markers.forEach { marker ->
+                        val isCompatible = selectedConnector == null || marker.connectorTypes?.contains(selectedConnector) == true
                         Marker(
                             state = MarkerState(
                                 position = LatLng(
-                                    station.latitude,
-                                    station.longitude
+                                    marker.latitude,
+                                    marker.longitude
                                 )
                             ),
-                            title = station.name,
+                            title = marker.name,
                             icon = BitmapDescriptorFactory.defaultMarker(
                                 if (isCompatible) BitmapDescriptorFactory.HUE_GREEN else BitmapDescriptorFactory.HUE_RED
                             ),
                             onClick = {
-                                onStationClick(station)
+                                if (userLocation != null) {
+                                    viewModel.fetchStationDetail(marker.id, userLocation!!.latitude, userLocation!!.longitude)
+                                }
                                 true // consume click
                             }
                         )
@@ -331,23 +340,15 @@ fun MapTabScreen(
             // Trigger fetch when camera stops
             LaunchedEffect(cameraPositionState.isMoving) {
                 if (!cameraPositionState.isMoving) {
-                    val center = cameraPositionState.position.target
-                    val projection = cameraPositionState.projection
-                    val visibleRegion = projection?.visibleRegion
-                    val radius = if (visibleRegion != null) {
-                        val results = FloatArray(1)
-                        android.location.Location.distanceBetween(
-                            center.latitude, center.longitude,
-                            visibleRegion.farRight.latitude, visibleRegion.farRight.longitude,
-                            results
+                    val bounds = cameraPositionState.projection?.visibleRegion?.latLngBounds
+                    if (bounds != null) {
+                        viewModel.fetchViewportMarkers(
+                            bounds.northeast.latitude, bounds.northeast.longitude,
+                            bounds.southwest.latitude, bounds.southwest.longitude
                         )
-                        // Convert meters to kilometers and add 20% buffer
-                        (results[0] / 1000.0) * 1.2
-                    } else {
-                        // Fallback based on default search radius
-                        10.0
+                        val center = cameraPositionState.position.target
+                        viewModel.fetchCarouselStations(center.latitude, center.longitude)
                     }
-                    viewModel.fetchNearbyStationsDebounced(center, radius)
                 }
             }
 
@@ -399,41 +400,39 @@ fun MapTabScreen(
             }
 
             // Nearby Stations Carousel overlay at the bottom
-            if (uiState is StationUiState.Success) {
-                val stations = (uiState as StationUiState.Success).stations
-                val visibleRegion = cameraPositionState.projection?.visibleRegion
-                val visibleStations = if (visibleRegion != null) {
-                    stations.filter { station ->
-                        visibleRegion.latLngBounds.contains(LatLng(station.latitude, station.longitude))
-                    }
-                } else {
-                    stations
+            val carouselStations by viewModel.carouselStations.collectAsState()
+            val visibleRegion = cameraPositionState.projection?.visibleRegion
+            val visibleCarousel = if (visibleRegion != null) {
+                carouselStations.filter { station ->
+                    visibleRegion.latLngBounds.contains(LatLng(station.latitude, station.longitude))
                 }
+            } else {
+                carouselStations
+            }
 
-                if (visibleStations.isNotEmpty()) {
-                    NearbyStationsCarousel(
-                        stations = visibleStations,
-                        onStationClick = { station ->
-                            // Center camera on clicked station
-                            cameraPositionState.position = CameraPosition.fromLatLngZoom(
-                                LatLng(station.latitude, station.longitude),
-                                14f
-                            )
-                            onStationClick(station)
-                        },
-                        onNavigateClick = { station ->
-                            val lat = station.latitude
-                            val lng = station.longitude
-                            val gmmIntentUri = Uri.parse("google.navigation:q=$lat,$lng")
-                            val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
-                            mapIntent.setPackage("com.google.android.apps.maps")
-                            context.startActivity(mapIntent)
-                        },
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(bottom = 24.dp)
-                    )
-                }
+            if (visibleCarousel.isNotEmpty()) {
+                NearbyStationsCarousel(
+                    stations = visibleCarousel,
+                    onStationClick = { station ->
+                        // Center camera on clicked station
+                        cameraPositionState.position = CameraPosition.fromLatLngZoom(
+                            LatLng(station.latitude, station.longitude),
+                            14f
+                        )
+                        onStationClick(station)
+                    },
+                    onNavigateClick = { station ->
+                        val lat = station.latitude
+                        val lng = station.longitude
+                        val gmmIntentUri = Uri.parse("google.navigation:q=$lat,$lng")
+                        val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
+                        mapIntent.setPackage("com.google.android.apps.maps")
+                        context.startActivity(mapIntent)
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 24.dp)
+                )
             }
         } else {
             Box(
@@ -449,7 +448,7 @@ fun MapTabScreen(
         }
 
         // Loading indicator overlay
-        if (uiState is StationUiState.Loading && userLocation != null) {
+        if (markerState is MarkerUiState.Loading && userLocation != null) {
             LinearProgressIndicator(
                 modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter),
                 color = Color(0xFF0F766E)

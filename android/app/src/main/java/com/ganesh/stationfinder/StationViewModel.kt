@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ganesh.stationfinder.data.model.OCMStation
 import com.ganesh.stationfinder.data.model.Review
+import com.ganesh.stationfinder.data.model.StationMarker
 import com.ganesh.stationfinder.data.repository.StationRepository
 import com.google.android.gms.maps.model.LatLng
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,6 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import java.util.LinkedHashMap
 
 sealed class StationUiState {
     object Loading : StationUiState()
@@ -19,10 +21,95 @@ sealed class StationUiState {
     data class Error(val message: String) : StationUiState()
 }
 
+sealed class MarkerUiState {
+    object Idle : MarkerUiState()
+    object Loading : MarkerUiState()
+    data class Success(val markers: List<StationMarker>, val tooMany: Boolean = false) : MarkerUiState()
+    data class Error(val message: String) : MarkerUiState()
+}
+
 class StationViewModel : ViewModel() {
     private val repository = StationRepository()
     private var searchJob: Job? = null
     private var lastFetchedLocation: LatLng? = null
+
+    // --- Map markers (lightweight) ---
+    private val _markerState = MutableStateFlow<MarkerUiState>(MarkerUiState.Idle)
+    val markerState: StateFlow<MarkerUiState> = _markerState.asStateFlow()
+
+    // --- Carousel (full stations, max 5) ---
+    private val _carouselStations = MutableStateFlow<List<OCMStation>>(emptyList())
+    val carouselStations: StateFlow<List<OCMStation>> = _carouselStations.asStateFlow()
+
+    // --- Bounding box cache (LRU, max 10 entries) ---
+    private val viewportCache = LinkedHashMap<String, Pair<List<StationMarker>, Boolean>>(10, 0.75f, true)
+
+    private var lastViewportKey: String? = null
+    private var viewportJob: Job? = null
+    private var carouselJob: Job? = null
+
+    // --- Selected Station Detail for Map pin click ---
+    private val _selectedStationDetail = MutableStateFlow<OCMStation?>(null)
+    val selectedStationDetail: StateFlow<OCMStation?> = _selectedStationDetail.asStateFlow()
+
+    fun fetchViewportMarkers(neLat: Double, neLng: Double, swLat: Double, swLng: Double) {
+        // Round to 3 decimal places for cache key (~111m precision)
+        val key = "${(neLat*1000).toInt()},${(neLng*1000).toInt()},${(swLat*1000).toInt()},${(swLng*1000).toInt()}"
+
+        // Skip if same viewport
+        if (key == lastViewportKey) return
+        lastViewportKey = key
+
+        // Check cache
+        viewportCache[key]?.let { cached ->
+            _markerState.value = MarkerUiState.Success(cached.first, cached.second)
+            return
+        }
+
+        viewportJob?.cancel()
+        viewportJob = viewModelScope.launch {
+            delay(800) // debounce
+            _markerState.value = MarkerUiState.Loading
+            try {
+                val (markers, tooMany) = repository.getStationsInViewport(neLat, neLng, swLat, swLng)
+                viewportCache[key] = Pair(markers, tooMany)
+                if (viewportCache.size > 10) {
+                    viewportCache.remove(viewportCache.keys.first())
+                }
+                _markerState.value = MarkerUiState.Success(markers, tooMany)
+            } catch (e: Exception) {
+                _markerState.value = MarkerUiState.Error(e.message ?: "Unknown error")
+            }
+        }
+    }
+
+    fun fetchCarouselStations(lat: Double, lng: Double, radius: Double = 10.0) {
+        carouselJob?.cancel()
+        carouselJob = viewModelScope.launch {
+            delay(800) // debounce
+            try {
+                val stations = repository.getNearbyStations(lat, lng, radius)
+                _carouselStations.value = stations.take(5)
+            } catch (e: Exception) {
+                _carouselStations.value = emptyList()
+            }
+        }
+    }
+
+    fun fetchStationDetail(id: Long, lat: Double, lng: Double) {
+        viewModelScope.launch {
+            try {
+                val detail = repository.getStationDetail(id, lat, lng)
+                _selectedStationDetail.value = detail
+            } catch (e: Exception) {
+                _selectedStationDetail.value = null
+            }
+        }
+    }
+
+    fun clearSelectedStationDetail() {
+        _selectedStationDetail.value = null
+    }
 
     // Filter Preference
     private val _selectedConnectorFilter = MutableStateFlow<String?>(null)
