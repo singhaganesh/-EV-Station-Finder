@@ -40,6 +40,9 @@ import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.maps.android.compose.*
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -432,6 +435,7 @@ fun MapTabScreen(
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun NearbyStationsCarousel(
     stations: List<OCMStation>,
@@ -439,7 +443,10 @@ fun NearbyStationsCarousel(
     onNavigateClick: (OCMStation) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val lazyListState = rememberLazyListState()
     androidx.compose.foundation.lazy.LazyRow(
+        state = lazyListState,
+        flingBehavior = rememberSnapFlingBehavior(lazyListState = lazyListState),
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         contentPadding = PaddingValues(horizontal = 16.dp)
@@ -457,8 +464,8 @@ fun NearbyStationsCarousel(
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     // Top row: Title and Status
                     Row(
@@ -469,7 +476,7 @@ fun NearbyStationsCarousel(
                         Text(
                             text = station.name,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp,
+                            fontSize = 14.sp,
                             maxLines = 1,
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f),
@@ -487,7 +494,7 @@ fun NearbyStationsCarousel(
                                     BorderStroke(1.dp, if (isAvailable) Color(0xFF15803D).copy(alpha = 0.2f) else Color(0xFF991B1B).copy(alpha = 0.2f)),
                                     RoundedCornerShape(12.dp)
                                 )
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 if (isAvailable) {
@@ -495,14 +502,14 @@ fun NearbyStationsCarousel(
                                         imageVector = Icons.Default.CheckCircle,
                                         contentDescription = null,
                                         tint = Color(0xFF15803D),
-                                        modifier = Modifier.size(12.dp)
+                                        modifier = Modifier.size(10.dp)
                                     )
                                 } else {
                                     Icon(
                                         imageVector = Icons.Default.Cancel,
                                         contentDescription = null,
                                         tint = Color(0xFF991B1B),
-                                        modifier = Modifier.size(12.dp)
+                                        modifier = Modifier.size(10.dp)
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(4.dp))
@@ -510,85 +517,80 @@ fun NearbyStationsCarousel(
                                     text = if (isAvailable) "Available" else "In Use",
                                     color = if (isAvailable) Color(0xFF15803D) else Color(0xFF991B1B),
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 11.sp
+                                    fontSize = 10.sp
                                 )
                             }
                         }
                     }
 
-                    // Second row: Rating & Distance & Last used
+                    // Second row: Rating, Distance, Connector Type & Never used
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Star,
                             contentDescription = null,
                             tint = Color(0xFFFFB300),
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(14.dp)
                         )
                         Text(
                             text = String.format("%.1f", station.rating ?: 0.0),
                             fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
+                            fontSize = 11.sp,
                             color = Color(0xFF1E293B)
                         )
 
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(2.dp))
 
                         Icon(
                             imageVector = Icons.Default.Place,
                             contentDescription = null,
                             tint = Color(0xFF0F766E),
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(14.dp)
                         )
                         Text(
                             text = "${String.format("%.1f", station.distance ?: 0.0)} km",
                             fontWeight = FontWeight.Medium,
-                            fontSize = 12.sp,
+                            fontSize = 11.sp,
+                            color = Color(0xFF545F73)
+                        )
+
+                        Spacer(modifier = Modifier.width(2.dp))
+
+                        Icon(
+                            imageVector = Icons.Default.Bolt,
+                            contentDescription = null,
+                            tint = Color(0xFFFF4081),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        val connector = station.connectorTypes?.firstOrNull() ?: "Unknown"
+                        Text(
+                            text = connector,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
                             color = Color(0xFF545F73)
                         )
 
                         Spacer(modifier = Modifier.weight(1f))
 
                         Text(
-                            text = "Last used Never",
-                            fontSize = 11.sp,
+                            text = "Never used",
+                            fontSize = 10.sp,
                             color = Color.Gray
-                        )
-                    }
-
-                    // Third row: Connectors list
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Bolt,
-                            contentDescription = null,
-                            tint = Color(0xFFFF4081),
-                            modifier = Modifier.size(16.dp)
-                        )
-                        val connector = station.connectorTypes?.firstOrNull() ?: "Unknown"
-                        Text(
-                            text = connector,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF545F73)
                         )
                     }
 
                     // Divider
                     HorizontalDivider(color = Color(0xFFF1F5F9))
 
-                    // Fourth row: Navigate button
+                    // Third row: Navigate button
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { onNavigateClick(station) }
-                            .padding(vertical = 4.dp),
+                            .padding(vertical = 2.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
@@ -596,14 +598,14 @@ fun NearbyStationsCarousel(
                             imageVector = Icons.Default.Navigation,
                             contentDescription = null,
                             tint = Color(0xFF0F766E),
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(14.dp)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "Navigate to Station",
                             color = Color(0xFF0F766E),
                             fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
+                            fontSize = 12.sp
                         )
                     }
                 }
