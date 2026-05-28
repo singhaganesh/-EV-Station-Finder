@@ -341,13 +341,27 @@ fun MapTabScreen(
             LaunchedEffect(cameraPositionState.isMoving) {
                 if (!cameraPositionState.isMoving) {
                     val bounds = cameraPositionState.projection?.visibleRegion?.latLngBounds
+                    val projection = cameraPositionState.projection
+                    val visibleRegion = projection?.visibleRegion
                     if (bounds != null) {
                         viewModel.fetchViewportMarkers(
                             bounds.northeast.latitude, bounds.northeast.longitude,
                             bounds.southwest.latitude, bounds.southwest.longitude
                         )
                         val center = cameraPositionState.position.target
-                        viewModel.fetchCarouselStations(center.latitude, center.longitude)
+                        val radius = if (visibleRegion != null) {
+                            val results = FloatArray(1)
+                            android.location.Location.distanceBetween(
+                                center.latitude, center.longitude,
+                                visibleRegion.farRight.latitude, visibleRegion.farRight.longitude,
+                                results
+                            )
+                            // Convert meters to kilometers and add 20% buffer
+                            (results[0] / 1000.0) * 1.2
+                        } else {
+                            10.0
+                        }
+                        viewModel.fetchCarouselStations(center.latitude, center.longitude, radius)
                     }
                 }
             }
