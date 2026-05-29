@@ -44,6 +44,56 @@ import com.google.maps.android.compose.*
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 
+object MarkerIconCache {
+    private val cache = mutableMapOf<String, com.google.android.gms.maps.model.BitmapDescriptor>()
+    
+    fun get(colorHex: String, isLarge: Boolean): com.google.android.gms.maps.model.BitmapDescriptor {
+        val key = "$colorHex-$isLarge"
+        return cache.getOrPut(key) {
+            val size = if (isLarge) 90 else 55
+            val bitmap = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+            val canvas = android.graphics.Canvas(bitmap)
+            val paint = android.graphics.Paint().apply {
+                isAntiAlias = true
+            }
+            val colorInt = android.graphics.Color.parseColor(colorHex)
+            
+            // 1. Draw a soft black drop shadow oval under the tip
+            val shadowPaint = android.graphics.Paint().apply {
+                isAntiAlias = true
+                color = android.graphics.Color.BLACK
+                alpha = 40
+            }
+            canvas.drawOval(size * 0.35f, size * 0.9f, size * 0.65f, size.toFloat(), shadowPaint)
+            
+            // 2. Draw teardrop body path
+            val pinHeight = size * 0.9f
+            val pinPath = android.graphics.Path().apply {
+                moveTo(size / 2f, pinHeight)
+                cubicTo(size * 0.12f, pinHeight * 0.6f, size * 0.12f, 0f, size / 2f, 0f)
+                cubicTo(size * 0.88f, 0f, size * 0.88f, pinHeight * 0.6f, size / 2f, pinHeight)
+                close()
+            }
+            
+            paint.color = colorInt
+            paint.style = android.graphics.Paint.Style.FILL
+            canvas.drawPath(pinPath, paint)
+            
+            // 3. Draw white stroke outline around teardrop
+            paint.color = android.graphics.Color.WHITE
+            paint.style = android.graphics.Paint.Style.STROKE
+            paint.strokeWidth = if (isLarge) 4f else 2.5f
+            canvas.drawPath(pinPath, paint)
+            
+            // 4. Draw white inner circular core
+            paint.style = android.graphics.Paint.Style.FILL
+            paint.color = android.graphics.Color.WHITE
+            canvas.drawCircle(size / 2f, pinHeight * 0.38f, pinHeight * 0.13f, paint)
+            
+            com.google.android.gms.maps.model.BitmapDescriptorFactory.fromBitmap(bitmap)
+        }
+    }
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -239,6 +289,7 @@ fun MapTabScreen(
     val selectedStationDetail by viewModel.selectedStationDetail.collectAsState()
     
     var userLocation by remember { mutableStateOf<LatLng?>(null) }
+    val carouselListState = rememberLazyListState()
     
     var hasLocationPermission by remember {
         mutableStateOf(
@@ -259,6 +310,7 @@ fun MapTabScreen(
         if (hasLocationPermission) {
             LocationHelper.getCurrentLocation(context) { location ->
                 userLocation = location
+                location?.let { viewModel.fetchNearbyStations(it) }
             }
         } else {
             launcher.launch(
@@ -302,7 +354,29 @@ fun MapTabScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         if (userLocation != null) {
             val cameraPositionState = rememberCameraPositionState {
-                position = CameraPosition.fromLatLngZoom(userLocation!!.let { LatLng(it.latitude, it.longitude) }, 12f)
+                position = CameraPosition.fromLatLngZoom(userLocation!!.let { LatLng(it.latitude, it.longitude) }, 10f)
+            }
+
+            // Carousel Stations Flow and Active Element tracking
+            val carouselStations by viewModel.carouselStations.collectAsState()
+            val visibleRegion = cameraPositionState.projection?.visibleRegion
+            val visibleCarousel = remember(carouselStations, visibleRegion) {
+                if (visibleRegion != null) {
+                    carouselStations.filter { station ->
+                        visibleRegion.latLngBounds.contains(LatLng(station.latitude, station.longitude))
+                    }
+                } else {
+                    carouselStations
+                }
+            }
+
+            val activeStationId = remember(visibleCarousel, carouselListState.firstVisibleItemIndex) {
+                if (visibleCarousel.isNotEmpty()) {
+                    val index = carouselListState.firstVisibleItemIndex
+                    if (index in visibleCarousel.indices) {
+                        visibleCarousel[index].id
+                    } else null
+                } else null
             }
 
             GoogleMap(
@@ -314,7 +388,10 @@ fun MapTabScreen(
                 if (markerState is MarkerUiState.Success) {
                     val markers = (markerState as MarkerUiState.Success).markers
                     markers.forEach { marker ->
+                        val isActive = marker.id == activeStationId
                         val isCompatible = selectedConnector == null || marker.connectorTypes?.contains(selectedConnector) == true
+                        val colorHex = if (isCompatible) "#0F766E" else "#EF4444"
+                        
                         Marker(
                             state = MarkerState(
                                 position = LatLng(
@@ -323,9 +400,7 @@ fun MapTabScreen(
                                 )
                             ),
                             title = marker.name,
-                            icon = BitmapDescriptorFactory.defaultMarker(
-                                if (isCompatible) BitmapDescriptorFactory.HUE_GREEN else BitmapDescriptorFactory.HUE_RED
-                            ),
+                            icon = MarkerIconCache.get(colorHex, isLarge = isActive),
                             onClick = {
                                 if (userLocation != null) {
                                     viewModel.fetchStationDetail(marker.id, userLocation!!.latitude, userLocation!!.longitude)
@@ -342,18 +417,18 @@ fun MapTabScreen(
                 if (!cameraPositionState.isMoving) {
                     val bounds = cameraPositionState.projection?.visibleRegion?.latLngBounds
                     val projection = cameraPositionState.projection
-                    val visibleRegion = projection?.visibleRegion
+                    val visibleRegionInternal = projection?.visibleRegion
                     if (bounds != null) {
                         viewModel.fetchViewportMarkers(
                             bounds.northeast.latitude, bounds.northeast.longitude,
                             bounds.southwest.latitude, bounds.southwest.longitude
                         )
                         val center = cameraPositionState.position.target
-                        val radius = if (visibleRegion != null) {
+                        val radius = if (visibleRegionInternal != null) {
                             val results = FloatArray(1)
                             android.location.Location.distanceBetween(
                                 center.latitude, center.longitude,
-                                visibleRegion.farRight.latitude, visibleRegion.farRight.longitude,
+                                visibleRegionInternal.farRight.latitude, visibleRegionInternal.farRight.longitude,
                                 results
                             )
                             // Convert meters to kilometers and add 20% buffer
@@ -413,20 +488,10 @@ fun MapTabScreen(
                 }
             }
 
-            // Nearby Stations Carousel overlay at the bottom
-            val carouselStations by viewModel.carouselStations.collectAsState()
-            val visibleRegion = cameraPositionState.projection?.visibleRegion
-            val visibleCarousel = if (visibleRegion != null) {
-                carouselStations.filter { station ->
-                    visibleRegion.latLngBounds.contains(LatLng(station.latitude, station.longitude))
-                }
-            } else {
-                carouselStations
-            }
-
             if (visibleCarousel.isNotEmpty()) {
                 NearbyStationsCarousel(
                     stations = visibleCarousel,
+                    lazyListState = carouselListState,
                     onStationClick = { station ->
                         // Center camera on clicked station
                         cameraPositionState.position = CameraPosition.fromLatLngZoom(
@@ -475,11 +540,11 @@ fun MapTabScreen(
 @Composable
 fun NearbyStationsCarousel(
     stations: List<OCMStation>,
+    lazyListState: androidx.compose.foundation.lazy.LazyListState,
     onStationClick: (OCMStation) -> Unit,
     onNavigateClick: (OCMStation) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val lazyListState = rememberLazyListState()
     androidx.compose.foundation.lazy.LazyRow(
         state = lazyListState,
         flingBehavior = rememberSnapFlingBehavior(lazyListState = lazyListState),

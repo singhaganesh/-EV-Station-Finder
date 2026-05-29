@@ -60,7 +60,7 @@ fun ListScreen(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Search by station name or address") },
+                    placeholder = { Text("Search name or address...", maxLines = 1, softWrap = false, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) },
                     leadingIcon = { Icon(Icons.Default.Search, null, tint = Color.Gray) },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),

@@ -24,99 +24,80 @@ fun SavedScreen(
     onStationClick: (OCMStation) -> Unit
 ) {
     val context = LocalContext.current
-    val uiState by viewModel.uiState.collectAsState()
+    val savedStations by viewModel.savedStations.collectAsState()
+    val isSavedLoading by viewModel.isSavedLoading.collectAsState()
     
     // Trigger recomposition when a favorite is toggled
     var favoriteUpdateTrigger by remember { mutableStateOf(0) }
+
+    LaunchedEffect(favoriteUpdateTrigger) {
+        val lastLoc = viewModel.lastFetchedLocation
+        val lat = lastLoc?.latitude ?: 0.0
+        val lng = lastLoc?.longitude ?: 0.0
+        viewModel.fetchSavedStations(context, lat, lng)
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF8FAFC))
     ) {
-        when (uiState) {
-            is StationUiState.Loading -> {
+        if (isSavedLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = Color(0xFF0F766E))
+            }
+        } else {
+            if (savedStations.isEmpty()) {
                 Box(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().padding(32.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = Color(0xFF0F766E))
-                }
-            }
-            is StationUiState.Error -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Error: ${(uiState as StationUiState.Error).message}",
-                        color = Color.Red,
-                        modifier = Modifier.padding(16.dp)
-                    )
-                }
-            }
-            is StationUiState.Success -> {
-                val allStations = (uiState as StationUiState.Success).stations
-                
-                // Get the favorited IDs
-                val favoriteIds = remember(favoriteUpdateTrigger) {
-                    FavoriteManager.getFavorites(context)
-                }
-
-                // Filter stations list by favorite IDs
-                val savedStations = remember(allStations, favoriteIds) {
-                    allStations.filter { favoriteIds.contains(it.id) }
-                }
-
-                if (savedStations.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize().padding(32.dp),
-                        contentAlignment = Alignment.Center
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.BookmarkBorder,
-                                contentDescription = null,
-                                modifier = Modifier.size(64.dp),
-                                tint = Color.LightGray
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                text = "No favorite stations yet",
-                                fontWeight = FontWeight.Bold,
-                                color = Color.Gray,
-                                fontSize = 16.sp
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Bookmark your preferred charging points in the map or list tabs to access them instantly here.",
-                                color = Color.Gray,
-                                fontSize = 13.sp,
-                                modifier = Modifier.padding(horizontal = 24.dp),
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Default.BookmarkBorder,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = Color.LightGray
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "No favorite stations yet",
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Gray,
+                            fontSize = 16.sp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Bookmark your preferred charging points in the map or list tabs to access them instantly here.",
+                            color = Color.Gray,
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(horizontal = 24.dp),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
                     }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(savedStations, key = { it.id }) { station ->
-                            StationRowItem(
-                                station = station,
-                                isFavorited = true,
-                                onFavoriteToggle = {
-                                    FavoriteManager.toggleFavorite(context, station.id)
-                                    favoriteUpdateTrigger++
-                                },
-                                onClick = { onStationClick(station) }
-                            )
-                        }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(savedStations, key = { it.id }) { station ->
+                        StationRowItem(
+                            station = station,
+                            isFavorited = true,
+                            onFavoriteToggle = {
+                                FavoriteManager.toggleFavorite(context, station.id)
+                                favoriteUpdateTrigger++
+                            },
+                            onClick = { onStationClick(station) }
+                        )
                     }
                 }
             }

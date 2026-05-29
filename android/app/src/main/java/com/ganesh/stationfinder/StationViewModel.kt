@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import java.util.LinkedHashMap
+import com.ganesh.stationfinder.util.FavoriteManager
 
 sealed class StationUiState {
     object Loading : StationUiState()
@@ -31,7 +32,8 @@ sealed class MarkerUiState {
 class StationViewModel : ViewModel() {
     private val repository = StationRepository()
     private var searchJob: Job? = null
-    private var lastFetchedLocation: LatLng? = null
+    var lastFetchedLocation: LatLng? = null
+        private set
 
     // --- Map markers (lightweight) ---
     private val _markerState = MutableStateFlow<MarkerUiState>(MarkerUiState.Idle)
@@ -51,6 +53,34 @@ class StationViewModel : ViewModel() {
     // --- Selected Station Detail for Map pin click ---
     private val _selectedStationDetail = MutableStateFlow<OCMStation?>(null)
     val selectedStationDetail: StateFlow<OCMStation?> = _selectedStationDetail.asStateFlow()
+
+    // --- Saved Stations (full OCMStation objects) ---
+    private val _savedStations = MutableStateFlow<List<OCMStation>>(emptyList())
+    val savedStations: StateFlow<List<OCMStation>> = _savedStations.asStateFlow()
+
+    private val _isSavedLoading = MutableStateFlow(false)
+    val isSavedLoading: StateFlow<Boolean> = _isSavedLoading.asStateFlow()
+
+    fun fetchSavedStations(context: android.content.Context, lat: Double, lng: Double) {
+        viewModelScope.launch {
+            _isSavedLoading.value = true
+            val ids = FavoriteManager.getFavorites(context)
+            if (ids.isEmpty()) {
+                _savedStations.value = emptyList()
+            } else {
+                try {
+                    val list = ids.mapNotNull { id ->
+                        repository.getStationDetail(id, lat, lng)
+                    }
+                    _savedStations.value = list
+                } catch (e: Exception) {
+                    android.util.Log.e("ViewModel", "Error fetching saved stations details", e)
+                    _savedStations.value = emptyList()
+                }
+            }
+            _isSavedLoading.value = false
+        }
+    }
 
     fun fetchViewportMarkers(neLat: Double, neLng: Double, swLat: Double, swLng: Double) {
         // Round to 3 decimal places for cache key (~111m precision)
