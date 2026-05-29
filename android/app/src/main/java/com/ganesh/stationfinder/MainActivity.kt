@@ -358,26 +358,48 @@ fun MapTabScreen(
 
             // Carousel Stations Flow and Active Element tracking
             val carouselStations by viewModel.carouselStations.collectAsState()
-            val visibleRegion = cameraPositionState.projection?.visibleRegion
-            val visibleCarousel = remember(carouselStations, visibleRegion) {
-                if (visibleRegion != null) {
-                    carouselStations.filter { station ->
-                        visibleRegion.latLngBounds.contains(LatLng(station.latitude, station.longitude))
-                    }.take(5)
-                } else {
-                    carouselStations.take(5)
-                }
-            }
+            var selectedMarkerId by remember { mutableStateOf<Long?>(null) }
+            val visibleCarousel = carouselStations.take(5)
 
             val pagerState = rememberPagerState(pageCount = { visibleCarousel.size })
 
-            val activeStationId = remember(visibleCarousel, pagerState.currentPage) {
-                if (visibleCarousel.isNotEmpty()) {
+            // Reset pager to page 0 when carousel data changes to avoid stale index
+            LaunchedEffect(visibleCarousel) {
+                if (visibleCarousel.isNotEmpty() && pagerState.currentPage >= visibleCarousel.size) {
+                    pagerState.scrollToPage(0)
+                }
+            }
+
+            val activeStationId = remember(visibleCarousel, pagerState.currentPage, selectedMarkerId) {
+                selectedMarkerId ?: if (visibleCarousel.isNotEmpty()) {
                     val index = pagerState.currentPage
                     if (index in visibleCarousel.indices) {
                         visibleCarousel[index].id
                     } else null
                 } else null
+            }
+
+            // Sync selectedMarkerId when swiping the pager
+            LaunchedEffect(pagerState.currentPage, visibleCarousel) {
+                if (visibleCarousel.isNotEmpty()) {
+                    val index = pagerState.currentPage
+                    if (index in visibleCarousel.indices) {
+                        val station = visibleCarousel[index]
+                        if (selectedMarkerId != station.id) {
+                            selectedMarkerId = station.id
+                        }
+                    }
+                }
+            }
+
+            // Scroll pager to selected marker when it gets updated or loaded
+            LaunchedEffect(visibleCarousel, selectedMarkerId) {
+                if (selectedMarkerId != null && visibleCarousel.isNotEmpty()) {
+                    val index = visibleCarousel.indexOfFirst { it.id == selectedMarkerId }
+                    if (index >= 0 && pagerState.currentPage != index) {
+                        pagerState.scrollToPage(index)
+                    }
+                }
             }
 
             GoogleMap(
@@ -403,8 +425,18 @@ fun MapTabScreen(
                             title = marker.name,
                             icon = MarkerIconCache.get(colorHex, isLarge = isActive),
                             onClick = {
-                                if (userLocation != null) {
-                                    viewModel.fetchStationDetail(marker.id, userLocation!!.latitude, userLocation!!.longitude)
+                                selectedMarkerId = marker.id
+                                // Compute nearest 5 stations client-side from already-loaded markers
+                                // Distance displayed is from user's actual GPS location
+                                if (userLocation != null && markerState is MarkerUiState.Success) {
+                                    val allMarkers = (markerState as MarkerUiState.Success).markers
+                                    viewModel.computeCarouselFromMarkers(
+                                        markers = allMarkers,
+                                        pinLat = marker.latitude,
+                                        pinLng = marker.longitude,
+                                        userLat = userLocation!!.latitude,
+                                        userLng = userLocation!!.longitude
+                                    )
                                 }
                                 true // consume click
                             }
@@ -415,7 +447,9 @@ fun MapTabScreen(
 
             // Trigger fetch when camera stops or projection becomes available on initial load
             LaunchedEffect(cameraPositionState.isMoving, cameraPositionState.projection) {
-                if (!cameraPositionState.isMoving) {
+                if (cameraPositionState.isMoving) {
+                    selectedMarkerId = null
+                } else {
                     val bounds = cameraPositionState.projection?.visibleRegion?.latLngBounds
                     val projection = cameraPositionState.projection
                     val visibleRegionInternal = projection?.visibleRegion

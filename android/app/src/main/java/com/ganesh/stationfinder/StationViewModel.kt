@@ -113,10 +113,12 @@ class StationViewModel : ViewModel() {
         }
     }
 
-    fun fetchCarouselStations(lat: Double, lng: Double, radius: Double = 10.0) {
+    fun fetchCarouselStations(lat: Double, lng: Double, radius: Double = 10.0, immediate: Boolean = false) {
         carouselJob?.cancel()
         carouselJob = viewModelScope.launch {
-            delay(800) // debounce
+            if (!immediate) {
+                delay(800) // debounce
+            }
             try {
                 val stations = repository.getNearbyStations(lat, lng, radius)
                 _carouselStations.value = stations.take(5)
@@ -124,6 +126,60 @@ class StationViewModel : ViewModel() {
                 _carouselStations.value = emptyList()
             }
         }
+    }
+
+    /**
+     * Compute carousel stations instantly from already-loaded viewport markers.
+     * Sorts by proximity to [pinLat]/[pinLng] (the clicked pin) but calculates
+     * display distance from [userLat]/[userLng] (user's actual GPS location).
+     */
+    fun computeCarouselFromMarkers(
+        markers: List<StationMarker>,
+        pinLat: Double, pinLng: Double,
+        userLat: Double, userLng: Double
+    ) {
+        // Cancel any pending debounced backend fetch so it doesn't overwrite us
+        carouselJob?.cancel()
+        carouselJob = null
+
+        // Sort markers by distance to the clicked pin
+        val sorted = markers.sortedBy { marker ->
+            haversineKm(pinLat, pinLng, marker.latitude, marker.longitude)
+        }.take(5)
+
+        // Convert StationMarker → OCMStation with distance from user location
+        _carouselStations.value = sorted.map { marker ->
+            val distFromUser = haversineKm(userLat, userLng, marker.latitude, marker.longitude)
+            OCMStation(
+                id = marker.id,
+                name = marker.name,
+                latitude = marker.latitude,
+                longitude = marker.longitude,
+                address = null,
+                operatingHours = null,
+                pricePerKwh = null,
+                rating = marker.rating,
+                isOpen = marker.available,
+                meta = null,
+                distance = distFromUser,
+                availableSlots = marker.availableSlots,
+                totalSlots = marker.totalSlots,
+                connectorTypes = marker.connectorTypes,
+                slots = null
+            )
+        }
+    }
+
+    /** Haversine formula — returns distance in kilometres between two lat/lng points. */
+    private fun haversineKm(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {
+        val r = 6371.0 // Earth radius in km
+        val dLat = Math.toRadians(lat2 - lat1)
+        val dLng = Math.toRadians(lng2 - lng1)
+        val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+                Math.sin(dLng / 2) * Math.sin(dLng / 2)
+        val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+        return r * c
     }
 
     fun fetchStationDetail(id: Long, lat: Double, lng: Double) {
