@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import java.util.LinkedHashMap
@@ -167,6 +168,38 @@ class StationViewModel : ViewModel() {
                 connectorTypes = marker.connectorTypes,
                 slots = null
             )
+        }
+
+        // Fetch the full station details in the background for these 5 stations
+        viewModelScope.launch {
+            try {
+                val coroutineScope = this
+                val deferreds = sorted.map { marker ->
+                    coroutineScope.async {
+                        val distFromUser = haversineKm(userLat, userLng, marker.latitude, marker.longitude)
+                        try {
+                            val detail = repository.getStationDetail(marker.id, userLat, userLng)
+                            detail?.copy(distance = distFromUser)
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+                }
+                val fullStations = deferreds.mapNotNull { it.await() }
+
+                if (fullStations.isNotEmpty()) {
+                    val currentList = _carouselStations.value.toMutableList()
+                    fullStations.forEach { fullStation ->
+                        val index = currentList.indexOfFirst { it.id == fullStation.id }
+                        if (index >= 0) {
+                            currentList[index] = fullStation
+                        }
+                    }
+                    _carouselStations.value = currentList
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("ViewModel", "Error fetching heavyweight details in background", e)
+            }
         }
     }
 
