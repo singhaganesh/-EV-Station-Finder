@@ -45,10 +45,14 @@ EV Station Finder is a utility app that connects electric vehicle owners with a 
 
 With this app, you can:
 - 🗺️ **Locate nearby EV charging stations** on an interactive map.
-- ⚡ **Inspect connector configurations** (CCS2, Type 2, etc.) and power ratings (kW).
-- 🟢 **Check charger availability** instantly.
-- 🔍 **Search stations** by name or address.
-- 🔖 **Bookmark favorite stations** for quick offline access.
+- ⚡ **Filter by Charger/Connector configurations** (CCS2, Type 2, CHAdeMO, Type 1) matching your specific EV profile.
+- 🟢 **Check charger availability & live slots** instantly.
+- 🔍 **Search stations** by name or address with unified search controls.
+- 🔖 **Bookmark favorite stations** with seamless database synchronization.
+- 🎠 **Browse nearby chargers in a map carousel** featuring card snapping and instant local scrolling.
+- 🛣️ **Plan road trips with stops** along Expressway corridors (e.g. Mumbai-Pune) using our corridor planner.
+- 💬 **Read and write star reviews** directly on any station details bottom sheet.
+- 🚗 **Set up a personal EV Profile** to automatically pre-filter compatible charging stations.
 
 ---
 
@@ -137,10 +141,10 @@ We unified EV station directory information with:
 
 | Feature | Description | Status |
 | :--- | :--- | :--- |
-| **Real-time Navigation** | Open Google Maps directions with a single tap | 📅 Planned |
+| **Real-time Navigation** | Open Google Maps directions with a single tap | ✅ Implemented |
 | **Push Notifications** | Receive notifications when a bookmarked station becomes available | 💡 Under Review |
-| **User Reviews** | Add comments and upload images of charging stations | 📅 Planned |
-| **Route Planner** | Plan long-distance trips with recommended charging stops | 💡 Under Review |
+| **User Reviews & Ratings** | Add star ratings, user names, and comments for any station | ✅ Implemented |
+| **Route Planner** | Plan routes (e.g. Mumbai-Pune) with recommended charging stops | ✅ Implemented |
 
 ---
 
@@ -584,6 +588,8 @@ Run instrumental and local JUnit tests in Android Studio by right-clicking on `s
 *   **Map Camera Debounce**: The client-side debounce logic prevents spamming the backend database. While dragging the map, requests are deferred until the map stabilizes for 1.5 seconds.
 *   **Spatial Viewport Bounding**: Viewport fetches look up stations using database indexes on the `latitude` and `longitude` fields, avoiding expensive table-scans.
 *   **Dynamic Distances**: Heavy floating-point coordinate conversions (Haversine) are processed in parallel within Java streams using cached viewports.
+*   **Parallel Details Pre-fetching**: Tapping a pin instantly builds the 5-station carousel list from memory (using viewport markers) and immediately launches parallel coroutines (`async`/`awaitAll` in `viewModelScope`) to pre-fetch the heavyweight details (`OCMStation`) for these 5 stations. This ensures subsequent carousel scrolls/swipes are fully local and latency-free.
+*   **Gesture-Based Camera Decoupling**: The app distinguishes between manual user gestures and programmatic camera centering. Auto-fetches of center-based carousel lists are only executed when the map is panned/zoomed by manual user gestures, preventing selection overrides or flickering when centering on selected pins.
 
 ---
 
