@@ -41,8 +41,8 @@ import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.maps.android.compose.*
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 
 object MarkerIconCache {
     private val cache = mutableMapOf<String, com.google.android.gms.maps.model.BitmapDescriptor>()
@@ -289,7 +289,6 @@ fun MapTabScreen(
     val selectedStationDetail by viewModel.selectedStationDetail.collectAsState()
     
     var userLocation by remember { mutableStateOf<LatLng?>(null) }
-    val carouselListState = rememberLazyListState()
     
     var hasLocationPermission by remember {
         mutableStateOf(
@@ -364,15 +363,17 @@ fun MapTabScreen(
                 if (visibleRegion != null) {
                     carouselStations.filter { station ->
                         visibleRegion.latLngBounds.contains(LatLng(station.latitude, station.longitude))
-                    }
+                    }.take(5)
                 } else {
-                    carouselStations
+                    carouselStations.take(5)
                 }
             }
 
-            val activeStationId = remember(visibleCarousel, carouselListState.firstVisibleItemIndex) {
+            val pagerState = rememberPagerState(pageCount = { visibleCarousel.size })
+
+            val activeStationId = remember(visibleCarousel, pagerState.currentPage) {
                 if (visibleCarousel.isNotEmpty()) {
-                    val index = carouselListState.firstVisibleItemIndex
+                    val index = pagerState.currentPage
                     if (index in visibleCarousel.indices) {
                         visibleCarousel[index].id
                     } else null
@@ -491,7 +492,7 @@ fun MapTabScreen(
             if (visibleCarousel.isNotEmpty()) {
                 NearbyStationsCarousel(
                     stations = visibleCarousel,
-                    lazyListState = carouselListState,
+                    pagerState = pagerState,
                     onStationClick = { station ->
                         // Center camera on clicked station
                         cameraPositionState.position = CameraPosition.fromLatLngZoom(
@@ -540,25 +541,23 @@ fun MapTabScreen(
 @Composable
 fun NearbyStationsCarousel(
     stations: List<OCMStation>,
-    lazyListState: androidx.compose.foundation.lazy.LazyListState,
+    pagerState: androidx.compose.foundation.pager.PagerState,
     onStationClick: (OCMStation) -> Unit,
     onNavigateClick: (OCMStation) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    androidx.compose.foundation.lazy.LazyRow(
-        state = lazyListState,
-        flingBehavior = rememberSnapFlingBehavior(lazyListState = lazyListState),
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = PaddingValues(horizontal = 16.dp)
-    ) {
-        val nearbyFive = stations.take(5)
-        items(nearbyFive.size) { index ->
-            val station = nearbyFive[index]
-            Card(
-                modifier = Modifier
-                    .width(300.dp)
-                    .clickable { onStationClick(station) },
+    androidx.compose.foundation.pager.HorizontalPager(
+        state = pagerState,
+        pageSize = androidx.compose.foundation.pager.PageSize.Fixed(300.dp),
+        pageSpacing = 12.dp,
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        modifier = modifier.fillMaxWidth()
+    ) { page ->
+        val station = stations[page]
+        Card(
+            modifier = Modifier
+                .width(300.dp)
+                .clickable { onStationClick(station) },
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 shape = RoundedCornerShape(16.dp),
                 border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
@@ -711,6 +710,5 @@ fun NearbyStationsCarousel(
                     }
                 }
             }
-        }
     }
 }
