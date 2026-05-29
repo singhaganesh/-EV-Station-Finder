@@ -11,7 +11,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
-@Table(name = "stations")
+@Table(name = "stations", indexes = {
+    @Index(name = "idx_stations_lat_lng", columnList = "latitude, longitude")
+})
 @Data
 @Builder
 @NoArgsConstructor
