@@ -413,8 +413,8 @@ fun MapTabScreen(
                 }
             }
 
-            // Trigger fetch when camera stops
-            LaunchedEffect(cameraPositionState.isMoving) {
+            // Trigger fetch when camera stops or projection becomes available on initial load
+            LaunchedEffect(cameraPositionState.isMoving, cameraPositionState.projection) {
                 if (!cameraPositionState.isMoving) {
                     val bounds = cameraPositionState.projection?.visibleRegion?.latLngBounds
                     val projection = cameraPositionState.projection
