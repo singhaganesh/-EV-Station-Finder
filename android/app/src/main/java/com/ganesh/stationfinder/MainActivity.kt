@@ -363,6 +363,25 @@ fun MapTabScreen(
 
             val pagerState = rememberPagerState(pageCount = { visibleCarousel.size })
 
+            var initialCarouselLoaded by remember { mutableStateOf(false) }
+
+            LaunchedEffect(markerState) {
+                val loc = userLocation
+                if (!initialCarouselLoaded && loc != null) {
+                    val state = markerState
+                    if (state is MarkerUiState.Success && state.markers.isNotEmpty()) {
+                        initialCarouselLoaded = true
+                        viewModel.computeCarouselFromMarkers(
+                            markers = state.markers,
+                            pinLat = loc.latitude,
+                            pinLng = loc.longitude,
+                            userLat = loc.latitude,
+                            userLng = loc.longitude
+                        )
+                    }
+                }
+            }
+
             // Reset pager to page 0 when carousel data changes to avoid stale index
             LaunchedEffect(visibleCarousel) {
                 if (visibleCarousel.isNotEmpty() && pagerState.currentPage >= visibleCarousel.size) {
@@ -447,11 +466,7 @@ fun MapTabScreen(
 
             // Trigger viewport marker fetch when camera stops or projection becomes available on initial load
             LaunchedEffect(cameraPositionState.isMoving, cameraPositionState.projection) {
-                if (cameraPositionState.isMoving) {
-                    if (cameraPositionState.cameraMoveStartedReason == CameraMoveStartedReason.GESTURE) {
-                        selectedMarkerId = null
-                    }
-                } else {
+                if (!cameraPositionState.isMoving) {
                     val bounds = cameraPositionState.projection?.visibleRegion?.latLngBounds
                     if (bounds != null) {
                         viewModel.fetchViewportMarkers(
@@ -509,7 +524,7 @@ fun MapTabScreen(
                 }
             }
 
-            if (selectedMarkerId != null && visibleCarousel.isNotEmpty()) {
+            if (visibleCarousel.isNotEmpty()) {
                 NearbyStationsCarousel(
                     stations = visibleCarousel,
                     pagerState = pagerState,
