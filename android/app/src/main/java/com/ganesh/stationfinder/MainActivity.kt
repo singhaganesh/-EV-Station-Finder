@@ -445,7 +445,7 @@ fun MapTabScreen(
                 }
             }
 
-            // Trigger fetch when camera stops or projection becomes available on initial load
+            // Trigger viewport marker fetch when camera stops or projection becomes available on initial load
             LaunchedEffect(cameraPositionState.isMoving, cameraPositionState.projection) {
                 if (cameraPositionState.isMoving) {
                     if (cameraPositionState.cameraMoveStartedReason == CameraMoveStartedReason.GESTURE) {
@@ -453,29 +453,11 @@ fun MapTabScreen(
                     }
                 } else {
                     val bounds = cameraPositionState.projection?.visibleRegion?.latLngBounds
-                    val projection = cameraPositionState.projection
-                    val visibleRegionInternal = projection?.visibleRegion
                     if (bounds != null) {
                         viewModel.fetchViewportMarkers(
                             bounds.northeast.latitude, bounds.northeast.longitude,
                             bounds.southwest.latitude, bounds.southwest.longitude
                         )
-                        if (selectedMarkerId == null) {
-                            val center = cameraPositionState.position.target
-                            val radius = if (visibleRegionInternal != null) {
-                                val results = FloatArray(1)
-                                android.location.Location.distanceBetween(
-                                    center.latitude, center.longitude,
-                                    visibleRegionInternal.farRight.latitude, visibleRegionInternal.farRight.longitude,
-                                    results
-                                )
-                                // Convert meters to kilometers and add 20% buffer
-                                (results[0] / 1000.0) * 1.2
-                            } else {
-                                10.0
-                            }
-                            viewModel.fetchCarouselStations(center.latitude, center.longitude, radius)
-                        }
                     }
                 }
             }
@@ -527,7 +509,7 @@ fun MapTabScreen(
                 }
             }
 
-            if (visibleCarousel.isNotEmpty()) {
+            if (selectedMarkerId != null && visibleCarousel.isNotEmpty()) {
                 NearbyStationsCarousel(
                     stations = visibleCarousel,
                     pagerState = pagerState,
